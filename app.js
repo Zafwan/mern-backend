@@ -1,10 +1,11 @@
+require('dotenv').config();
 const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
 
 // routes
-const users = require('./routes/api/users');
 const books = require('./routes/api/books');
+const loginRegister = require('./routes/api/auth/loginRegister');
 
 const app = express();
 
@@ -21,7 +22,7 @@ app.use(express.json({ extended: false }));
 
 // use Routes
 app.use('/api/books', books);
-app.use('/api/auth', users);
+app.use('/api/auth', loginRegister);
 
 const port = process.env.PORT || 8082;
 
