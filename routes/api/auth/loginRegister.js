@@ -93,5 +93,15 @@ router.post('/login', async (req, res) => {
     }
 })
 
+// @route POST api/auth/isAuth
+// @description check if authenticated
+// @access Public
+router.get('/isAuth', async (req, res) => {
+    if (req.session.user) {
+        return res.json(req.session.user)
+    } else {
+        return res.status(401).json('unauthorize')
+    }
+})
 
 module.exports = router
