@@ -33,7 +33,7 @@ router.post('/register', async (req, res) => {
     })
 
     const newUser = new UserSchema({ username, email, password })
-    // hasing the password
+    // hashing the password
     bcrypt.hash(password, 7, async (err, hash) => {
         if (err)
             return res.status(400).json({
@@ -55,7 +55,7 @@ router.post('/register', async (req, res) => {
 // @route POST api/auth/login
 // @description login user
 // @access Public
-router.post(`/login`, async (req, res) => {
+router.post('/login', async (req, res) => {
     const { email, password } = req.body
 
     if (!email || !password) {
@@ -76,6 +76,9 @@ router.post(`/login`, async (req, res) => {
     // comparing the password with the saved hash-password
     const matchPassword = await bcrypt.compare(password, user.password)
     if (matchPassword) {
+        const userSession = { email: user.email } // creating user session to keep user loggedin also on refresh
+        req.session.user = userSession // attach user session to session object from express-session
+
         return res
             .status(200)
             .json({
