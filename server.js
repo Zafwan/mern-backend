@@ -1,64 +1,84 @@
-const express = require('express');
-const logger = require('morgan');
-const movies = require('./routes/movies');
-const users = require('./routes/users');
-const bodyParser = require('body-parser');
-const mongoose = require('./config/database'); //database configuration
-var jwt = require('jsonwebtoken');
+const express = require("express");
+const cors = require("cors");
+
 const app = express();
 
-app.set('secretKey', 'nodeRestApi'); // jwt secret token// connection to mongodb
-mongoose.connection.on('error', console.error.bind(console, 'MongoDB connection error:'));
+var corsOptions = {
+    origin: "http://localhost:8080"
+};
 
-app.use(logger('dev'));
+app.use(cors(corsOptions));
 
-app.use(bodyParser.urlencoded({ extended: false }));
+// parse requests of content-type - application/json
+app.use(express.json());
 
-app.get('/', function (req, res) {
-    res.json({ "tutorial": "Build REST API with node.js" });
+// parse requests of content-type - application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true }));
+
+// simple route
+app.get("/", (req, res) => {
+    res.json({ message: "Welcome to express api." });
 });
 
-// public route
-app.use('/users', users);
+// open mongoose connection and connect to MongoDB
+const mongoose = require("mongoose");
+const dbConfig = require("./app/config/db.config");
 
-// private route
-app.use('/movies', validateUser, movies);
-
-app.get('/favicon.ico', function (req, res) {
-    res.sendStatus(204);
+// Create a connection to MongoDB
+mongoose.connect(`mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
 });
 
-function validateUser(req, res, next) {
-    jwt.verify(req.headers['x-access-token'], req.app.get('secretKey'), function (err, decoded) {
-        if (err) {
-            res.json({ status: "error", message: err.message, data: null });
-        } else {
-            // add user id to request
-            req.body.userId = decoded.id;
-            next();
-        }
-    });
+// Create a role model
+const RoleSchema = new mongoose.Schema({
+    name: {
+        type: String,
+    },
+});
 
+// Create a role model instance
+const Role = mongoose.model("Role", RoleSchema);
+
+// Initialize the roles collection
+async function initial() {
+    // Get an estimate of the number of documents in the roles collection
+    const count = await Role.estimatedDocumentCount();
+
+    // If there are no documents in the collection, create three new roles
+    if (count === 0) {
+        await Role.create({
+            name: "user",
+        });
+
+        await Role.create({
+            name: "moderator",
+        });
+
+        await Role.create({
+            name: "admin",
+        });
+    }
 }
 
-// express doesn't consider not found 404 as an error so we need to handle 404 explicitly
-// handle 404 error
-app.use(function (req, res, next) {
-    let err = new Error('Not Found');
-    err.status = 404;
-    next(err);
+// Start the connection
+mongoose.connection.on("connected", () => {
+    console.log("Successfully connected to MongoDB.");
+    initial();
 });
 
-// handle errors
-app.use(function (err, req, res, next) {
-    console.log(err);
-
-    if (err.status === 404)
-        res.status(404).json({ message: "Not found" });
-    else
-        res.status(500).json({ message: "Something looks wrong :( !!!" });
+// Handle connection errors
+mongoose.connection.on("error", err => {
+    console.error("Connection error", err);
+    process.exit();
 });
 
-app.listen(3000, function () {
-    console.log('Node server listening on port 3000');
+// routes
+require('./app/routes/auth.routes')(app);
+require('./app/routes/user.routes')(app);
+
+// set port, listen for requests
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}.`);
 });
