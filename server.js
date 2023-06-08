@@ -1,84 +1,38 @@
-const express = require("express");
-const cors = require("cors");
+const express = require('express');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const mongoose = require('mongoose');
 
 const app = express();
-
-var corsOptions = {
-    origin: "http://localhost:8080"
-};
-
-app.use(cors(corsOptions));
-
-// parse requests of content-type - application/json
 app.use(express.json());
+app.use(cookieParser());
+app.use(cors());
 
-// parse requests of content-type - application/x-www-form-urlencoded
-app.use(express.urlencoded({ extended: true }));
+// Connect to MongoDB
+mongoose
+    .connect('mongodb://localhost:27017/myapp', {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+    })
+    .then(() => {
+        console.log('Connected to MongoDB');
+    })
+    .catch((error) => {
+        console.error('Error connecting to MongoDB:', error);
+    });
 
-// simple route
-app.get("/", (req, res) => {
-    res.json({ message: "Welcome to express api." });
+const PORT = process.env.PORT || 5000;
+
+// API routes
+const routes = require('./routes');
+app.use('/api', routes);
+
+// Default route
+app.get('/', (req, res) => {
+    res.send('Welcome to the default route');
 });
 
-// open mongoose connection and connect to MongoDB
-const mongoose = require("mongoose");
-const dbConfig = require("./app/config/db.config");
-
-// Create a connection to MongoDB
-mongoose.connect(`mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-});
-
-// Create a role model
-const RoleSchema = new mongoose.Schema({
-    name: {
-        type: String,
-    },
-});
-
-// Create a role model instance
-const Role = mongoose.model("Role", RoleSchema);
-
-// Initialize the roles collection
-async function initial() {
-    // Get an estimate of the number of documents in the roles collection
-    const count = await Role.estimatedDocumentCount();
-
-    // If there are no documents in the collection, create three new roles
-    if (count === 0) {
-        await Role.create({
-            name: "user",
-        });
-
-        await Role.create({
-            name: "moderator",
-        });
-
-        await Role.create({
-            name: "admin",
-        });
-    }
-}
-
-// Start the connection
-mongoose.connection.on("connected", () => {
-    console.log("Successfully connected to MongoDB.");
-    initial();
-});
-
-// Handle connection errors
-mongoose.connection.on("error", err => {
-    console.error("Connection error", err);
-    process.exit();
-});
-
-// routes
-require('./app/routes/auth.routes')(app);
-require('./app/routes/user.routes')(app);
-
-// set port, listen for requests
-const PORT = process.env.PORT || 8080;
+// Start the server
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}.`);
+    console.log(`Server is running on port ${PORT}`);
 });
